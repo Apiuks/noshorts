@@ -9,11 +9,13 @@ import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
+import android.os.CountDownTimer
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
 import android.text.InputType
 import android.view.Gravity
+import android.view.View
 import android.view.WindowInsets
 import android.widget.Button
 import android.widget.EditText
@@ -29,6 +31,7 @@ class MainActivity : Activity() {
     private lateinit var permText: TextView
     private lateinit var input: EditText
     private lateinit var start: Button
+    private lateinit var stop: Button
     private lateinit var strict: Switch
     private val handler = Handler(Looper.getMainLooper())
     private val tick = object : Runnable {
@@ -160,6 +163,14 @@ class MainActivity : Activity() {
             background = bg(Color.parseColor("#E5484D"), 14)
             setOnClickListener { startLock() }
         }
+        stop = Button(this).apply {
+            text = "Kilidi bitir"
+            isAllCaps = false
+            setTextColor(Color.parseColor("#8A8F98"))
+            background = bg(Color.parseColor("#1A1D24"), 12)
+            visibility = View.GONE
+            setOnClickListener { confirmStop() }
+        }
         val access = Button(this).apply {
             text = "Erişilebilirlik iznini aç"
             isAllCaps = false
@@ -176,8 +187,31 @@ class MainActivity : Activity() {
         root.addView(strict)
         root.addView(strictInfo)
         root.addView(start, LinearLayout.LayoutParams(-1, dp(56)))
+        root.addView(stop, LinearLayout.LayoutParams(-1, dp(48)).apply { topMargin = dp(12) })
         root.addView(access, LinearLayout.LayoutParams(-1, dp(52)).apply { topMargin = dp(12) })
         setContentView(sv)
+    }
+
+    private fun confirmStop() {
+        if (prefs().getBoolean("strict", false)) return
+        val d = AlertDialog.Builder(this)
+            .setTitle("Kilidi bitir")
+            .setMessage("Süre dolmadan kilidi bitirmek istediğine emin misin? Shorts tekrar açılacak.")
+            .setPositiveButton("Evet, bitir") { _, _ ->
+                if (!prefs().getBoolean("strict", false)) {
+                    prefs().edit().putLong("end", 0L).apply()
+                    refresh()
+                }
+            }
+            .setNegativeButton("Vazgeç", null)
+            .create()
+        d.show()
+        val b = d.getButton(AlertDialog.BUTTON_POSITIVE)
+        b.isEnabled = false
+        object : CountDownTimer(10000, 1000) {
+            override fun onTick(ms: Long) { b.text = "Bekle (${ms / 1000 + 1})" }
+            override fun onFinish() { b.text = "Evet, bitir"; b.isEnabled = true }
+        }.start()
     }
 
     private fun showDisclosure() {
@@ -238,6 +272,7 @@ class MainActivity : Activity() {
             start.alpha = 0.4f
             input.isEnabled = false
             strict.isEnabled = false
+            stop.visibility = if (prefs().getBoolean("strict", false)) View.GONE else View.VISIBLE
         } else {
             timeText.text = "Kilit kapalı"
             timeText.setTextColor(Color.parseColor("#46A758"))
@@ -245,6 +280,7 @@ class MainActivity : Activity() {
             start.alpha = 1f
             input.isEnabled = true
             strict.isEnabled = true
+            stop.visibility = View.GONE
         }
     }
 }
